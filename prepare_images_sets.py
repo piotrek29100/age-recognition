@@ -6,7 +6,12 @@ import os
 import random
 
 def crop_image(image):
-    top, right, bottom, left = face_recognition.face_locations(image)[0]
+    faces = face_recognition.face_locations(image)
+    
+    if len(faces)==0:
+        return None
+    
+    top, right, bottom, left = faces[0]
 
     image = image[top:bottom, left:right]
     image = Image.fromarray(image)
@@ -41,6 +46,8 @@ def _generate_images(target_directory, values):
         image = face_recognition.load_image_file(full_path)
         #  x1, y1, x2, y2 coordinates from imdb.mat are broken
         image = crop_image(image)
+        if image is None:
+            continue
         #image.show()
 
         directory = '{}\\{}'.format(target_directory,age)
@@ -52,4 +59,4 @@ def _generate_images(target_directory, values):
         image.save('{}\\{}'.format(directory, new_file))
 
 # 184'623 images
-generate_images("imdb_crop", 50000, validation_data=0.2, min_age=10, max_age=80)
+generate_images("imdb_crop", 500, validation_data=0.2, min_age=10, max_age=80)

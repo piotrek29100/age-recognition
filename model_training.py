@@ -18,6 +18,18 @@ model_folder = "model"
 train_dir = './imdb/train'
 validation_dir = './imdb/test'
 
+SAMPLES_NUMBER = 500
+VALIDATION_DATA = 0.2
+TRAIN_SAMPLES = int(SAMPLES_NUMBER * (1-VALIDATION_DATA))
+TEST_SAMPLES = int(SAMPLES_NUMBER * VALIDATION_DATA)
+
+BATCH_SIZE = 10
+STEPS_PER_EPOCH = int(TRAIN_SAMPLES/BATCH_SIZE)
+VALIDATION_STEPS = int(TEST_SAMPLES/BATCH_SIZE)
+EPOCHS = 1
+
+CLASSES_NUMBER = 71 # ages = <10, 80>
+
 def prepere_generators():
 
     datagen = ImageDataGenerator(rescale=1./255)
@@ -32,12 +44,10 @@ def prepere_generators():
     #         horizontal_flip=True,
     #         fill_mode='nearest')
 
-    batch_size = 20
-
     train_generator = datagen.flow_from_directory(
         train_dir,
         target_size=(224, 224),
-        batch_size=batch_size,
+        batch_size=BATCH_SIZE,
         class_mode='categorical',
         shuffle=True)
 
@@ -45,7 +55,7 @@ def prepere_generators():
     validation_generator = datagen.flow_from_directory(
         validation_dir,
         target_size=(224, 224),
-        batch_size=batch_size,
+        batch_size=BATCH_SIZE,
         class_mode='categorical')
 
     return train_generator, validation_generator
@@ -83,7 +93,7 @@ def create_model():
     # let's add a fully-connected layer
     x = Dense(1024, activation='relu')(x)
     # and a logistic layer -- let's say we have ... classes
-    predictions = Dense(21, activation='softmax')(x)
+    predictions = Dense(CLASSES_NUMBER, activation='softmax')(x)
 
     # this is the model we will train
     model = Model(inputs=base_model.input, outputs=predictions)
@@ -93,7 +103,7 @@ def create_model():
 
 train_generator, validation_generator = prepere_generators()
 
-# model = create_model()
+model = create_model()
 # OR
 model = load_model("{}/model_1.h5".format(model_folder))
 
@@ -113,8 +123,9 @@ model.compile(optimizer='rmsprop', loss='categorical_crossentropy')
 # train the model on the new data for a few epochs
 model.fit_generator(train_generator,
                     validation_data=validation_generator,
-                    steps_per_epoch=3,
-                    epochs=2)
+                    steps_per_epoch=STEPS_PER_EPOCH,
+                    validation_steps=VALIDATION_STEPS,
+                    epochs=EPOCHS)
 
 # at this point, the top layers are well trained and we can start fine-tuning
 # convolutional layers from inception V3. We will freeze the bottom N layers
@@ -138,17 +149,18 @@ model.compile(optimizer=SGD(lr=0.0001, momentum=0.9),
 # alongside the top Dense layers
 model.fit_generator(train_generator,
                     validation_data=validation_generator,
-                    steps_per_epoch=3,
-                    epochs=2)
+                    steps_per_epoch=STEPS_PER_EPOCH,
+                    validation_steps=VALIDATION_STEPS,
+                    epochs=EPOCHS)
 
 save_model(model, "model_1.h5")
 
 # Tests
 
-type(validation_generator)
-validation_generator.classes
+#type(validation_generator)
+#validation_generator.classes
 
-p = model.predict_generator(validation_generator)
-y = [np.argmax(x) for x in p]
+#p = model.predict_generator(validation_generator)
+#y = [np.argmax(x) for x in p]
 
-sum(pow(abs(y - validation_generator.classes), 2))/len(y)
+#sum(pow(abs(y - validation_generator.classes), 2))/len(y)
