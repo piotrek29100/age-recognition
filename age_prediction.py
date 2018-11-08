@@ -19,7 +19,7 @@ def crop_face(image):
     return image
 
 def predict_age(data):
-    data = np.asarray(img, dtype="float32")
+    data = np.asarray(data, dtype="float32")
 
     # reshape to be [samples][width][height][pixels]
     X_test = data.reshape(1, data.shape[0], data.shape[1], 3)
@@ -28,7 +28,7 @@ def predict_age(data):
 
     p = model.predict_generator(datagen.flow(X_test), verbose=0)
 
-    return np.argmax(p) + 20
+    return np.argmax(p) + 10
 
 img = Image.open("./imdb/test/26/nm4141252_rm965800704_1989-4-5_2015.jpg")
 img.load()

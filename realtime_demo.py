@@ -8,6 +8,12 @@ import numpy as np
 import argparse
 from keras.utils.data_utils import get_file
 from keras.models import load_model
+from PIL import Image
+import face_recognition
+import keras
+import numpy as np
+from keras.preprocessing.image import ImageDataGenerator
+from keras.models import load_model
 
 class FaceCV(object):
     """
@@ -20,6 +26,19 @@ class FaceCV(object):
         ## Modification
         model_folder = "model"
         self.model = load_model("{}/model_1.h5".format(model_folder))
+
+    def predict_age(self, data):
+        datagen = ImageDataGenerator(rescale=1./255)
+        data = np.asarray(data, dtype="float32")
+
+        # reshape to be [samples][width][height][pixels]
+        X_test = data.reshape(1, data.shape[0], data.shape[1], 3)
+        # convert from int to float
+        X_test = X_test.astype('float32')
+
+        p = self.model.predict_generator(datagen.flow(X_test), verbose=0)
+
+        return np.argmax(p) + 10
 
     def crop_face(self, imgarray, section, margin=40, size=64):
         """
@@ -83,14 +102,10 @@ class FaceCV(object):
                 face_imgs[i,:,:,:] = face_img
             if len(face_imgs) > 0:
                 # predict ages and genders of the detected faces
-                results = self.model.predict(face_imgs)
-                predicted_genders = 0
-                ages = np.arange(0, 101).reshape(101, 1)
-                predicted_ages = results[1].dot(ages).flatten()
+                result = self.model.predict(face_imgs)
             # draw results
             for i, face in enumerate(faces):
-                label = "{}, {}".format(int(predicted_ages[i]),
-                                        "F" if predicted_genders[i][0] > 0.5 else "M")
+                label = "{}".format(result)
                 self.draw_label(frame, (face[0], face[1]), label)
 
             cv2.imshow('Keras Faces', frame)
@@ -101,11 +116,7 @@ class FaceCV(object):
         cv2.destroyAllWindows()
 
 def main():
-    args = get_args()
-    depth = args.depth
-    width = args.width
-
-    face = FaceCV(depth=depth, width=width)
+    face = FaceCV()
 
     face.detect_face()
 
