@@ -122,9 +122,10 @@ model.fit_generator(train_generator,
 
 # we chose to train the top 2 inception blocks, i.e. we will freeze
 # the first 249 layers and unfreeze the rest:
-for layer in model.layers[:249]:
+frozen_layers = 249
+for layer in model.layers[:frozen_layers]:
     layer.trainable = False
-for layer in model.layers[249:]:
+for layer in model.layers[frozen_layers:]:
     layer.trainable = True
 
 # we need to recompile the model for these modifications to take effect
