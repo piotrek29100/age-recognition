@@ -13,6 +13,9 @@ from keras.models import Model
 from keras.layers import Dense, GlobalAveragePooling2D
 from keras import backend as K
 import os
+import cv2
+from PIL import Image
+import matplotlib.pyplot as plt
 
 model_folder = "model"
 train_dir = './imdb/train'
@@ -28,7 +31,17 @@ STEPS_PER_EPOCH = int(TRAIN_SAMPLES/BATCH_SIZE)
 VALIDATION_STEPS = int(TEST_SAMPLES/BATCH_SIZE)
 EPOCHS = 1
 
-CLASSES_NUMBER = 71 # ages = <10, 80>
+def prepere_Xy_sets(folder_name="imdb/train", image_target_size=(224, 224), age_range=(10,80)):
+    f = [[dirpath, dirnames, filenames] for dirpath, dirnames, filenames in os.walk(folder_name)]
+    f = [[dirpath.split("\\")[-1], [cv2.imread(dirpath+"\\"+image_name) for image_name in filenames]] for dirpath, dirnames, filenames in f]
+    f = [[age, image] for age, images in f for image in images]
+    X = np.array([cv2.resize(image, dsize=image_target_size, interpolation=cv2.INTER_CUBIC) for age, image in f])
+    y = np.array([(int(age)-age_range[0]) / (age_range[1]-age_range[0]) for age, image in f])
+
+    return X, y
+
+def decode_age(y, age_range=(10,80)):
+    return (age_range[1]-age_range[0]) * y + 10
 
 def prepere_generators():
 
@@ -44,21 +57,30 @@ def prepere_generators():
     #         horizontal_flip=True,
     #         fill_mode='nearest')
 
-    train_generator = datagen.flow_from_directory(
-        train_dir,
-        target_size=(224, 224),
+    # train_generator = datagen.flow_from_directory(
+    #     train_dir,
+    #     target_size=(224, 224),
+    #     batch_size=BATCH_SIZE,
+    #     shuffle=True)
+
+    train_X, train_y = prepere_Xy_sets("imdb/train")
+    train_generator = datagen.flow(train_X, train_y,
         batch_size=BATCH_SIZE,
-        class_mode='categorical',
         shuffle=True)
 
     # this is a similar generator, for validation data
-    validation_generator = datagen.flow_from_directory(
-        validation_dir,
-        target_size=(224, 224),
+    # validation_generator = datagen.flow_from_directory(
+    #     validation_dir,
+    #     target_size=(224, 224),
+    #     batch_size=BATCH_SIZE,
+    #     class_mode='categorical')
+    
+    val_X, val_y = prepere_Xy_sets("imdb/test")
+    validation_generator = datagen.flow(val_X, val_y,
         batch_size=BATCH_SIZE,
-        class_mode='categorical')
+        shuffle=False)
 
-    return train_generator, validation_generator
+    return train_generator, validation_generator, train_X, train_y, val_X, val_y
 
 def save_model(model, model_name):
 
@@ -84,16 +106,15 @@ def create_model():
     #                   input_shape=(224, 224, 3))
 
     # create the base pre-trained model
-    base_model = inception_v3.InceptionV3(
-        weights='imagenet', include_top=False)
+    base_model = inception_v3.InceptionV3(weights='imagenet', include_top=False)
 
     # add a global spatial average pooling layer
     x = base_model.output
     x = GlobalAveragePooling2D()(x)
     # let's add a fully-connected layer
     x = Dense(1024, activation='relu')(x)
-    # and a logistic layer -- let's say we have ... classes
-    predictions = Dense(CLASSES_NUMBER, activation='softmax')(x)
+    # and a logistic layer
+    predictions = Dense(1, activation='sigmoid')(x)
 
     # this is the model we will train
     model = Model(inputs=base_model.input, outputs=predictions)
@@ -101,7 +122,18 @@ def create_model():
     save_model(model, 'base_model.h5')
     return model
 
-train_generator, validation_generator = prepere_generators()
+train_generator, validation_generator, train_X, train_y, val_X, val_y = prepere_generators()
+
+# # Show image form image_generator
+# x,y = validation_generator.next()
+# for i in range(0,5):
+#     image = 256 - x[i] * 255
+#     image_copy = image.copy()
+#     image[:,:,0] = image_copy[:,:,2]
+#     image[:,:,1] = image_copy[:,:,1]
+#     image[:,:,2] = image_copy[:,:,0]
+#     plt.imshow(image)
+#     plt.show()
 
 model = create_model()
 # OR
@@ -118,7 +150,7 @@ for layer in model.layers[:311]:
     layer.trainable = False
 
 # compile the model (should be done *after* setting layers to non-trainable)
-model.compile(optimizer='rmsprop', loss='categorical_crossentropy')
+model.compile(optimizer='adam', loss='mean_squared_error')
 
 # train the model on the new data for a few epochs
 model.fit_generator(train_generator,
@@ -126,6 +158,8 @@ model.fit_generator(train_generator,
                     steps_per_epoch=STEPS_PER_EPOCH,
                     validation_steps=VALIDATION_STEPS,
                     epochs=EPOCHS)
+
+save_model(model, "model_1.h5")
 
 # at this point, the top layers are well trained and we can start fine-tuning
 # convolutional layers from inception V3. We will freeze the bottom N layers
@@ -143,7 +177,7 @@ for layer in model.layers[frozen_layers:]:
 # we use SGD with a low learning rate
 from keras.optimizers import SGD
 model.compile(optimizer=SGD(lr=0.0001, momentum=0.9),
-              loss='categorical_crossentropy')
+              loss='mean_squared_error')
 
 # we train our model again (this time fine-tuning the top 2 inception blocks
 # alongside the top Dense layers
@@ -155,12 +189,18 @@ model.fit_generator(train_generator,
 
 save_model(model, "model_1.h5")
 
-# Tests
+# Check results
 
-#type(validation_generator)
-#validation_generator.classes
+# Validation set
+p = model.predict_generator(validation_generator)
+y_pred = decode_age(p).flatten()
+y_val = decode_age(val_y)
+y_pred
+y_val
 
-#p = model.predict_generator(validation_generator)
-#y = [np.argmax(x) for x in p]
-
-#sum(pow(abs(y - validation_generator.classes), 2))/len(y)
+# Train set
+p = model.predict_generator(train_generator)
+y_pred = decode_age(p).flatten()
+y_train = decode_age(train_y)
+y_pred
+y_train

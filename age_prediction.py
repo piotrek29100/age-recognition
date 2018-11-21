@@ -30,9 +30,17 @@ def predict_age(data):
 
     return np.argmax(p) + 10
 
-img = Image.open("./imdb/test/26/nm4141252_rm965800704_1989-4-5_2015.jpg")
+img = Image.open("./imdb/test/26/nm2799457_rm926064896_1987-9-23_2013.jpg")
 img.load()
 
 predict_age(img)
 
+data = img
+data = np.asarray(data, dtype="float32")
 
+# reshape to be [samples][width][height][pixels]
+X_test = data.reshape(1, data.shape[0], data.shape[1], 3)
+# convert from int to float
+X_test = X_test.astype('float32')
+
+p = model.predict_generator(datagen.flow(X_test), verbose=0)
