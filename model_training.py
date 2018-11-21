@@ -34,7 +34,7 @@ EPOCHS = 1
 def prepere_Xy_sets(folder_name="imdb/train", image_target_size=(224, 224), age_range=(10,80)):
     f = [[dirpath, dirnames, filenames] for dirpath, dirnames, filenames in os.walk(folder_name)]
     f = [[dirpath.split("\\")[-1], [cv2.imread(dirpath+"\\"+image_name) for image_name in filenames]] for dirpath, dirnames, filenames in f]
-    f = [[age, image] for age, images in f for image in images]
+    f = [[age, image] for age, images in f for image in images if int(age)>=age_range[0] and int(age)<= age_range[1]]
     X = np.array([cv2.resize(image, dsize=image_target_size, interpolation=cv2.INTER_CUBIC) for age, image in f])
     y = np.array([(int(age)-age_range[0]) / (age_range[1]-age_range[0]) for age, image in f])
 
