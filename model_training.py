@@ -21,7 +21,9 @@ model_folder = "model"
 train_dir = './imdb/train'
 validation_dir = './imdb/test'
 
-SAMPLES_NUMBER = 500
+
+SAMPLES_RANGE = (0, 1000)
+SAMPLES_NUMBER = SAMPLES_RANGE[1] - SAMPLES_RANGE[0]
 VALIDATION_DATA = 0.2
 TRAIN_SAMPLES = int(SAMPLES_NUMBER * (1-VALIDATION_DATA))
 TEST_SAMPLES = int(SAMPLES_NUMBER * VALIDATION_DATA)
@@ -43,7 +45,7 @@ def prepere_Xy_sets(folder_name="imdb/train", image_target_size=(224, 224), age_
 def decode_age(y, age_range=(10,80)):
     return (age_range[1]-age_range[0]) * y + 10
 
-def prepere_generators():
+def prepere_generators(samples_range):
 
     datagen = ImageDataGenerator(rescale=1./255)
 
@@ -64,7 +66,7 @@ def prepere_generators():
     #     shuffle=True)
 
     train_X, train_y = prepere_Xy_sets("imdb/train")
-    train_generator = datagen.flow(train_X, train_y,
+    train_generator = datagen.flow(train_X[samples_range[0]:samples_range[1]], train_y[samples_range[0]:samples_range[1]],
         batch_size=BATCH_SIZE,
         shuffle=True)
 
@@ -76,7 +78,7 @@ def prepere_generators():
     #     class_mode='categorical')
     
     val_X, val_y = prepere_Xy_sets("imdb/test")
-    validation_generator = datagen.flow(val_X, val_y,
+    validation_generator = datagen.flow(val_X[samples_range[0]:samples_range[1]], val_y[samples_range[0]:samples_range[1]],
         batch_size=BATCH_SIZE,
         shuffle=False)
 
@@ -122,7 +124,7 @@ def create_model():
     save_model(model, 'base_model.h5')
     return model
 
-train_generator, validation_generator, train_X, train_y, val_X, val_y = prepere_generators()
+train_generator, validation_generator, train_X, train_y, val_X, val_y = prepere_generators(SAMPLES_RANGE)
 
 # # Show image form image_generator
 # x,y = validation_generator.next()
