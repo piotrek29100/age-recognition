@@ -45,6 +45,11 @@ def prepere_Xy_sets(folder_name="imdb/train", image_target_size=(224, 224), age_
 def decode_age(y, age_range=(10,80)):
     return (age_range[1]-age_range[0]) * y + 10
 
+# image_array.shape = [height, width, 3]
+def predict_age(image_array):
+    y = model.predict(np.reshape(image_array, (1,image_array.shape[0],image_array.shape[1],image_array.shape[2])))
+    return decode_age(y)[0][0]
+
 def prepere_generators(samples_range):
 
     datagen = ImageDataGenerator(rescale=1./255)
@@ -192,6 +197,7 @@ model.fit_generator(train_generator,
 save_model(model, "model_1.h5")
 
 # Check results
+y = predict_age(train_X[0])
 
 # Validation set
 p = model.predict_generator(validation_generator)
