@@ -1,6 +1,8 @@
 
 # Real time age recognition
 
+This project was created during Case Studies 2019 Winter semester https://github.com/pbiecek/CaseStudies2019W.
+
 ## Dependencies
 
 Face recognition package: https://github.com/ageitgey/face_recognition
